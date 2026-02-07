@@ -57,9 +57,27 @@ const verseAnalysisSchema: Schema = {
         },
         required: ["source", "text", "explanation"]
       }
+    },
+    reflectionQuestion: {
+      type: Type.STRING,
+      description: "A deep, personal question for the user to reflect on based on the verse's meaning."
+    },
+    quizQuestions: {
+      type: Type.ARRAY,
+      description: "3 multiple choice questions to test the user's understanding of this specific verse analysis.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          question: { type: Type.STRING },
+          options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "4 possible answers" },
+          correctAnswerIndex: { type: Type.INTEGER, description: "The index of the correct answer (0-3)" },
+          explanation: { type: Type.STRING, description: "Brief explanation of why this answer is correct" }
+        },
+        required: ["question", "options", "correctAnswerIndex", "explanation"]
+      }
     }
   },
-  required: ["simpleMeaning", "tafsirInsights", "wordAnalysis", "moralTeachings", "connections"]
+  required: ["simpleMeaning", "tafsirInsights", "wordAnalysis", "moralTeachings", "connections", "reflectionQuestion", "quizQuestions"]
 };
 
 export const fetchVerseAnalysis = async (verse: Verse): Promise<VerseAnalysis> => {
@@ -77,6 +95,8 @@ export const fetchVerseAnalysis = async (verse: Verse): Promise<VerseAnalysis> =
       4. Context of revelation (Meccan/Medinan, specific incidents).
       5. Moral teachings and action points.
       6. Connections to other parts of Quran or Hadith.
+      7. A reflective question for the user.
+      8. 3 Quiz questions to test understanding of the analysis.
     `;
 
     const response = await ai.models.generateContent({

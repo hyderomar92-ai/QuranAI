@@ -1,19 +1,39 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Verse, VerseAnalysis, ChatMessage } from '../types';
 import { fetchVerseAnalysis, chatWithVerse } from '../services/gemini';
-import { BookOpen, MessagesSquare, Sparkles, Languages, Send, Quote, Bot, User } from 'lucide-react';
+import { 
+  BookOpen, 
+  MessagesSquare, 
+  Sparkles, 
+  Languages, 
+  Send, 
+  Quote, 
+  Bot, 
+  User, 
+  Brain, 
+  CheckCircle, 
+  XCircle, 
+  HelpCircle, 
+  Lightbulb 
+} from 'lucide-react';
 
 interface VerseAnalysisViewProps {
   verse: Verse;
   onClose: () => void;
 }
 
-type Tab = 'meaning' | 'words' | 'connections' | 'chat';
+type Tab = 'meaning' | 'words' | 'connections' | 'quiz' | 'chat';
 
 const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose }) => {
   const [analysis, setAnalysis] = useState<VerseAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('meaning');
+  
+  // Quiz State
+  const [quizState, setQuizState] = useState<Record<number, number | null>>({}); // questionIdx -> selectedOptionIdx
+
+  // Word Analysis State
+  const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,6 +47,7 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
       setLoading(true);
       setAnalysis(null);
       setMessages([]); 
+      setQuizState({});
       try {
         const data = await fetchVerseAnalysis(verse);
         if (mounted) {
@@ -86,6 +107,11 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
     }
   };
 
+  const handleQuizOptionSelect = (questionIdx: number, optionIdx: number) => {
+    if (quizState[questionIdx] !== undefined) return; // Prevent changing answer
+    setQuizState(prev => ({ ...prev, [questionIdx]: optionIdx }));
+  };
+
   const TabButton = ({ id, label, icon: Icon }: { id: Tab, label: string, icon: any }) => (
     <button
       onClick={() => setActiveTab(id)}
@@ -120,6 +146,7 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
             <TabButton id="meaning" label="Meaning" icon={BookOpen} />
             <TabButton id="words" label="Words" icon={Languages} />
             <TabButton id="connections" label="Links" icon={Sparkles} />
+            <TabButton id="quiz" label="Quiz" icon={Brain} />
             <TabButton id="chat" label="Ask AI" icon={MessagesSquare} />
          </div>
       </div>
@@ -137,6 +164,8 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
             {/* Meaning & Tafsir Tab */}
             {activeTab === 'meaning' && (
               <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 fade-in">
+                
+                {/* Simplified Meaning */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-3 flex items-center gap-2">
                         <Sparkles size={14} /> Simplified Meaning
@@ -144,6 +173,22 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
                     <p className="text-lg leading-relaxed text-slate-800 font-medium">{analysis.simpleMeaning}</p>
                 </div>
 
+                {/* Reflection Card (New Feature) */}
+                {analysis.reflectionQuestion && (
+                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-4 opacity-5">
+                       <Lightbulb size={120} className="text-indigo-600" />
+                     </div>
+                     <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-3 flex items-center gap-2 relative z-10">
+                        <Lightbulb size={14} /> Reflection
+                     </h3>
+                     <p className="text-lg font-serif italic text-indigo-900 leading-relaxed relative z-10">
+                       "{analysis.reflectionQuestion}"
+                     </p>
+                  </div>
+                )}
+
+                {/* Tafsir Insights */}
                 <div className="grid gap-4">
                     {analysis.tafsirInsights.map((t, idx) => (
                         <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
@@ -161,13 +206,7 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
                     ))}
                 </div>
                 
-                <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-3">Historical Context</h3>
-                    <p className="text-amber-900/80 text-sm leading-relaxed">
-                        {analysis.historicalContext}
-                    </p>
-                </div>
-
+                {/* Moral Action Points */}
                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 mb-3">Moral Action Points</h3>
                     <ul className="space-y-3">
@@ -187,24 +226,41 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
             {/* Word Analysis Tab */}
             {activeTab === 'words' && (
               <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500 fade-in">
-                 {analysis.wordAnalysis.map((word, idx) => (
-                     <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:border-emerald-200 transition-all group">
-                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                             <div className="flex-1 text-right border-b sm:border-b-0 sm:border-l border-slate-100 pb-4 sm:pb-0 sm:pl-6 sm:order-2">
-                                 <p className="font-arabic text-3xl text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{word.arabicWord}</p>
-                                 <div className="inline-flex items-center gap-2 px-2 py-1 bg-slate-50 rounded text-xs text-slate-400 font-mono">
-                                    <span>Root:</span>
-                                    <span className="font-arabic font-bold text-slate-600">{word.root}</span>
+                 <div className="flex items-center gap-2 mb-2 px-1 text-slate-500 text-sm">
+                    <HelpCircle size={14} />
+                    <span>Hover over a card to highlight words with the same root.</span>
+                 </div>
+                 {analysis.wordAnalysis.map((word, idx) => {
+                     const isHovered = hoveredRoot === word.root;
+                     const isDimmed = hoveredRoot && hoveredRoot !== word.root;
+                     
+                     return (
+                         <div 
+                            key={idx} 
+                            onMouseEnter={() => setHoveredRoot(word.root)}
+                            onMouseLeave={() => setHoveredRoot(null)}
+                            className={`bg-white p-5 rounded-2xl shadow-sm border transition-all duration-300 group
+                                ${isHovered ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500 scale-[1.02]' : 'border-slate-100'}
+                                ${isDimmed ? 'opacity-40 grayscale-[50%]' : 'opacity-100'}
+                            `}
+                         >
+                             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                                 <div className="flex-1 text-right border-b sm:border-b-0 sm:border-l border-slate-100 pb-4 sm:pb-0 sm:pl-6 sm:order-2">
+                                     <p className="font-arabic text-3xl text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{word.arabicWord}</p>
+                                     <div className={`inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-mono transition-colors ${isHovered ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-50 text-slate-400'}`}>
+                                        <span>Root:</span>
+                                        <span className="font-arabic font-bold">{word.root}</span>
+                                     </div>
+                                 </div>
+                                 
+                                 <div className="flex-1 sm:order-1">
+                                     <p className="font-bold text-slate-900 text-lg mb-1">{word.meaning}</p>
+                                     <p className="text-sm text-slate-500 leading-relaxed">{word.nuance}</p>
                                  </div>
                              </div>
-                             
-                             <div className="flex-1 sm:order-1">
-                                 <p className="font-bold text-slate-900 text-lg mb-1">{word.meaning}</p>
-                                 <p className="text-sm text-slate-500 leading-relaxed">{word.nuance}</p>
-                             </div>
                          </div>
-                     </div>
-                 ))}
+                     );
+                 })}
               </div>
             )}
 
@@ -231,6 +287,70 @@ const VerseAnalysisView: React.FC<VerseAnalysisViewProps> = ({ verse, onClose })
                      </div>
                  ))}
               </div>
+            )}
+
+            {/* Quiz Tab (New Feature) */}
+            {activeTab === 'quiz' && (
+                <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500 fade-in">
+                    <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                        <h3 className="text-emerald-900 font-bold text-lg mb-2">Test Your Understanding</h3>
+                        <p className="text-emerald-700 text-sm">Review what you've learned from the verse analysis with these 3 questions.</p>
+                    </div>
+
+                    {analysis.quizQuestions && analysis.quizQuestions.map((q, qIdx) => {
+                        const hasAnswered = quizState[qIdx] !== undefined;
+                        const isCorrect = quizState[qIdx] === q.correctAnswerIndex;
+
+                        return (
+                            <div key={qIdx} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                <div className="p-6 border-b border-slate-100">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <p className="font-semibold text-slate-900 text-lg">{q.question}</p>
+                                        {hasAnswered && (
+                                            <div className={`shrink-0 ${isCorrect ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {isCorrect ? <CheckCircle size={24} /> : <XCircle size={24} />}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-slate-50 space-y-2">
+                                    {q.options.map((option, oIdx) => {
+                                        let btnClass = "w-full text-left p-4 rounded-xl border text-sm font-medium transition-all ";
+                                        
+                                        if (hasAnswered) {
+                                            if (oIdx === q.correctAnswerIndex) {
+                                                btnClass += "bg-emerald-100 border-emerald-500 text-emerald-800";
+                                            } else if (oIdx === quizState[qIdx]) {
+                                                btnClass += "bg-rose-100 border-rose-500 text-rose-800";
+                                            } else {
+                                                btnClass += "bg-white border-slate-200 text-slate-400 opacity-60";
+                                            }
+                                        } else {
+                                            btnClass += "bg-white border-slate-200 hover:border-emerald-400 hover:shadow-sm text-slate-700";
+                                        }
+
+                                        return (
+                                            <button 
+                                                key={oIdx}
+                                                onClick={() => handleQuizOptionSelect(qIdx, oIdx)}
+                                                disabled={hasAnswered}
+                                                className={btnClass}
+                                            >
+                                                {option}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {hasAnswered && (
+                                    <div className={`p-4 text-sm ${isCorrect ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+                                        <p className="font-bold mb-1">{isCorrect ? 'Correct!' : 'Incorrect'}</p>
+                                        <p>{q.explanation}</p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             )}
 
             {/* Chat Tab */}

@@ -25,6 +25,13 @@ export interface Connection {
   explanation: string;
 }
 
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswerIndex: number;
+  explanation: string;
+}
+
 export interface VerseAnalysis {
   simpleMeaning: string;
   tafsirInsights: TafsirInsight[];
@@ -32,6 +39,8 @@ export interface VerseAnalysis {
   historicalContext: string;
   moralTeachings: string[];
   connections: Connection[];
+  reflectionQuestion: string;
+  quizQuestions: QuizQuestion[];
 }
 
 export interface ChatMessage {
