@@ -39,3 +39,35 @@ export const fetchSurahVerses = async (surahNumber: number): Promise<Verse[]> =>
     throw error;
   }
 };
+
+export const searchQuran = async (query: string, surahLimit?: number): Promise<Verse[]> => {
+  try {
+    // API Route: /search/{query}/{scope}/{edition}
+    // Scope can be 'all' or a surah number
+    const scope = surahLimit ? surahLimit : 'all';
+    const response = await fetch(`${BASE_URL}/search/${query}/${scope}/en.sahih`);
+    
+    if (!response.ok) throw new Error('Search failed');
+    
+    const data = await response.json();
+    
+    // Map matches to our Verse type
+    // Note: Search results don't give us Transliteration or Arabic in the same call easily 
+    // without multiple edition requests, so we will use the English text provided.
+    // The matches array contains { text, number, surah: { number, name, englishName ... } }
+    
+    return data.data.matches.map((match: any) => ({
+      id: match.number,
+      surah: match.surah.number,
+      number: match.numberInSurah,
+      arabic: "", // Search endpoint doesn't return Arabic text by default
+      transliteration: "", // Search endpoint doesn't return transliteration
+      translation: match.text,
+      // We add a custom property to store surah name for display
+      surahName: match.surah.englishName
+    }));
+  } catch (error) {
+    console.error('Error searching Quran:', error);
+    return [];
+  }
+};

@@ -28,10 +28,14 @@ export interface WordAnalysis {
   nuance: string;
 }
 
+export type ConnectionType = 'quran' | 'hadith' | 'history' | 'geography' | 'general';
+
 export interface Connection {
+  type: ConnectionType;
   source: string; // e.g., "Quran 2:152" or "Sahih Bukhari 50"
   text: string;
   explanation: string;
+  url?: string; // External link to source
 }
 
 export interface QuizQuestion {
@@ -43,6 +47,7 @@ export interface QuizQuestion {
 
 export interface VerseAnalysis {
   simpleMeaning: string;
+  topics: string[];
   tafsirInsights: TafsirInsight[];
   wordAnalysis: WordAnalysis[];
   historicalContext: string;

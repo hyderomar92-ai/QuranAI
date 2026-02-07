@@ -13,9 +13,14 @@ const verseAnalysisSchema: Schema = {
   type: Type.OBJECT,
   properties: {
     simpleMeaning: { type: Type.STRING, description: "A simple, accessible explanation of the verse for a beginner." },
+    topics: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+      description: "3-5 key themes or concepts in this verse (e.g. 'Mercy', 'Day of Judgment', 'Guidance')."
+    },
     tafsirInsights: {
       type: Type.ARRAY,
-      description: "2-3 key scholarly interpretations from classical tafsir (e.g., Ibn Kathir, Al-Jalalayn).",
+      description: "4-5 key scholarly interpretations from major classical tafsirs (Ibn Kathir, Al-Jalalayn, Al-Tabari, Al-Qurtubi, As-Sa'di).",
       items: {
         type: Type.OBJECT,
         properties: {
@@ -47,15 +52,21 @@ const verseAnalysisSchema: Schema = {
     },
     connections: {
       type: Type.ARRAY,
-      description: "Related verses or Hadith.",
+      description: "Categorized connections to other verses, hadith, history, or geography.",
       items: {
         type: Type.OBJECT,
         properties: {
-          source: { type: Type.STRING, description: "Citation (e.g., Sahih Bukhari 1:1)." },
-          text: { type: Type.STRING, description: "The text of the related verse or hadith." },
-          explanation: { type: Type.STRING, description: "How it relates to the current verse." }
+          type: { 
+            type: Type.STRING, 
+            enum: ['quran', 'hadith', 'history', 'geography', 'general'],
+            description: "The category of this connection." 
+          },
+          source: { type: Type.STRING, description: "Citation (e.g., 'Quran 2:152', 'Sahih Bukhari 50', 'Battle of Badr')." },
+          text: { type: Type.STRING, description: "The text of the related verse, hadith, or historical event description." },
+          explanation: { type: Type.STRING, description: "Why this is connected to the current verse." },
+          url: { type: Type.STRING, description: "A direct URL to the source on quran.com, sunnah.com, or a map link if applicable." }
         },
-        required: ["source", "text", "explanation"]
+        required: ["type", "source", "text", "explanation"]
       }
     },
     reflectionQuestion: {
@@ -77,26 +88,42 @@ const verseAnalysisSchema: Schema = {
       }
     }
   },
-  required: ["simpleMeaning", "tafsirInsights", "wordAnalysis", "moralTeachings", "connections", "reflectionQuestion", "quizQuestions"]
+  required: ["simpleMeaning", "topics", "tafsirInsights", "wordAnalysis", "moralTeachings", "connections", "reflectionQuestion", "quizQuestions"]
 };
 
 export const fetchVerseAnalysis = async (verse: Verse): Promise<VerseAnalysis> => {
   try {
     const prompt = `
-      Analyze Surah Al-Fatiha, Verse ${verse.number}.
+      Analyze Surah ${verse.surah}, Verse ${verse.number}.
       Verse Text: "${verse.translation}"
       Arabic: "${verse.arabic}"
 
       Provide a comprehensive study guide for a non-Arabic speaking student.
+      
+      CRITICAL INSTRUCTION FOR CONNECTIONS:
+      Provide diverse connections categorized by type:
+      1. 'quran': Related verses (Tafsir of Quran by Quran) or thematic parallels.
+      2. 'hadith': Relevant traditions explaining the verse.
+      3. 'history': Timeline context (e.g., 'Revealed before migration') or events.
+      4. 'geography': Specific places mentioned or relevant to the verse (e.g. Makkah, Badr).
+      
+      For 'quran' and 'hadith', try to generate valid URLs to quran.com or sunnah.com.
+      
       Include:
       1. A very simple, plain English meaning.
-      2. Insights from classical Tafsir (Ibn Kathir, Al-Jalalayn, Al-Qurtubi).
-      3. Word-by-word linguistic breakdown (roots).
-      4. Context of revelation (Meccan/Medinan, specific incidents).
-      5. Moral teachings and action points.
-      6. Connections to other parts of Quran or Hadith.
-      7. A reflective question for the user.
-      8. 3 Quiz questions to test understanding of the analysis.
+      2. 3-5 One-word topics or concepts (e.g. Mercy, Monotheism).
+      3. Insights from classical Tafsir. You MUST include at least 4-5 diverse perspectives including:
+         - Tafsir Ibn Kathir (Report-based)
+         - Tafsir Al-Jalalayn (Linguistic/Concise)
+         - Tafsir Al-Tabari (Early analytical)
+         - Tafsir Al-Qurtubi (Legal/Fiqh focus)
+         - Tafsir As-Sa'di (Spiritual/Modern)
+      4. Word-by-word linguistic breakdown.
+      5. Context of revelation.
+      6. Moral teachings.
+      7. Categorized Connections.
+      8. A reflective question.
+      9. 3 Quiz questions.
     `;
 
     const response = await ai.models.generateContent({
@@ -128,10 +155,10 @@ export const chatWithVerse = async (
       config: {
         systemInstruction: `
           You are a warm, knowledgeable Islamic scholar and Quran tutor.
-          You are currently discussing Surah Al-Fatiha, Verse ${verse.number}: "${verse.translation}".
+          You are currently discussing Surah ${verse.surah}, Verse ${verse.number}: "${verse.translation}".
           Arabic: "${verse.arabic}".
 
-          Answer the user's questions based on classical Tafsir (Ibn Kathir, Jalalayn, etc.) and authentic Hadith.
+          Answer the user's questions based on classical Tafsir (Ibn Kathir, Jalalayn, Tabari, Qurtubi, Sa'di) and authentic Hadith.
           Be concise but deep. Always cite your sources.
           If the user asks about Arabic words, explain the root and nuance.
           Maintain a spiritual and respectful tone.
